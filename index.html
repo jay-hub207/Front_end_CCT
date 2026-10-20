@@ -565,6 +565,13 @@
   </div>
 
   <script>
+    // Awtomatikong gigisingin ang Render backend kapag binuksan ang website
+window.addEventListener('DOMContentLoaded', () => {
+    fetch("https://overspeeding-backend.onrender.com/")
+        .then(response => console.log("Backend wake-up ping sent successfully!"))
+        .catch(error => console.log("Wake-up ping waiting for server..."));
+});
+    
     // Live Backend URL configuration
     const BACKEND_URL = "https://overspeeding-backend.onrender.com";
 
