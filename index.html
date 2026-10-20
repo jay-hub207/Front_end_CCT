@@ -5,7 +5,6 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Barangay Traffic Enforcement System</title>
 
-
 <link rel="manifest" href="/manifest.json">
 <meta name="theme-color" content="#007bff">
 
@@ -566,6 +565,9 @@
   </div>
 
   <script>
+    // Live Backend URL configuration
+    const BACKEND_URL = "https://overspeeding-backend.onrender.com";
+
     let isAdminUnlocked = false;
     let pendingAction = null;
     let allHistoryLogs = [];
@@ -604,7 +606,6 @@
         thAction: "Evidence",
         btnViewPhoto: "📷 View Image",
         searchPlaceholder: "🔍 Search Plate Number...",
-        // Dynamic Notifications & Dialogs
         alertEnterPin: "Please enter the Admin PIN!",
         alertWrongPin: "❌ Incorrect Admin PIN! Access Denied.",
         alertSessionLocked: "🔒 Admin Session Locked.",
@@ -647,7 +648,6 @@
         thAction: "Ebidensya",
         btnViewPhoto: "📷 Tingnan ang Larawan",
         searchPlaceholder: "🔍 Maghanap ng Plaka...",
-        // Dynamic Notifications & Dialogs
         alertEnterPin: "Paki-lagay ang Admin PIN!",
         alertWrongPin: "❌ Mali ang Admin PIN! Hindi pinahintulutan.",
         alertSessionLocked: "🔒 Naka-lock na ang Admin Session.",
@@ -690,7 +690,6 @@
         thAction: "Ebidensya",
         btnViewPhoto: "📷 Kitaen ti Litrato",
         searchPlaceholder: "🔍 Agsapul ti Plaka...",
-        // Dynamic Notifications & Dialogs
         alertEnterPin: "Pangngaasi nga ikabil ti Admin PIN!",
         alertWrongPin: "❌ Naumfong a PIN! Saan a nabaelan.",
         alertSessionLocked: "🔒 Naka-lock ti Session ti Admin.",
@@ -706,7 +705,7 @@
     };
 
     // Check if initial setup is required on page load
-    fetch('/api/config-status')
+    fetch(`${BACKEND_URL}/api/config-status`)
       .then(res => res.json())
       .then(data => {
         if (!data.is_configured) {
@@ -723,7 +722,7 @@
         return alert(translations[currentLang].alertFillSetup);
       }
 
-      const res = await fetch('/api/setup-admin', {
+      const res = await fetch(`${BACKEND_URL}/api/setup-admin`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ pin: pin, question: question, answer: answer })
@@ -840,7 +839,7 @@
       document.getElementById('newPinInput').value = '';
       document.getElementById('resetModal').style.display = 'flex';
 
-      const res = await fetch('/api/get-security-question');
+      const res = await fetch(`${BACKEND_URL}/api/get-security-question`);
       const data = await res.json();
       document.getElementById('txtSecurityQuestion').innerText = data.question;
     }
@@ -853,7 +852,7 @@
       const pin = document.getElementById('pinInput').value;
       if (!pin) return alert(translations[currentLang].alertEnterPin);
 
-      const res = await fetch('/api/verify-pin', {
+      const res = await fetch(`${BACKEND_URL}/api/verify-pin`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ pin: pin })
@@ -875,7 +874,7 @@
 
       if (!answer || !newPin) return alert(translations[currentLang].alertFillReset);
 
-      const res = await fetch('/api/reset-pin', {
+      const res = await fetch(`${BACKEND_URL}/api/reset-pin`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ answer: answer, new_pin: newPin })
@@ -898,7 +897,7 @@
 
       if (!oldPin || !newPin) return alert(translations[currentLang].alertFillChangePin);
 
-      const res = await fetch('/api/change-pin-direct', {
+      const res = await fetch(`${BACKEND_URL}/api/change-pin-direct`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ old_pin: oldPin, new_pin: newPin })
@@ -950,7 +949,7 @@
       const newLimit = parseFloat(speedInput.value);
       if (!newLimit || newLimit <= 0) return alert(translations[currentLang].alertValidSpeed);
 
-      const response = await fetch('/api/speed-limit', {
+      const response = await fetch(`${BACKEND_URL}/api/speed-limit`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ new_limit: newLimit })
@@ -963,7 +962,7 @@
     }
 
     function loadHistoryRoom() {
-      fetch('/api/violations')
+      fetch(`${BACKEND_URL}/api/violations`)
         .then(res => res.json())
         .then(data => {
           allHistoryLogs = data;
@@ -1001,15 +1000,17 @@
       renderHistoryTable(filtered);
     }
 
-    fetch('/api/speed-limit')
+    fetch(`${BACKEND_URL}/api/speed-limit`)
       .then(res => res.json())
       .then(data => {
         document.getElementById('speedInput').value = data.speed_limit;
         document.getElementById('currentLimitDisplay').innerText = `${data.speed_limit} km/h`;
       });
 
-    const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-    const ws = new WebSocket(`${protocol}//${window.location.host}/ws`);
+    // Extract hostname from BACKEND_URL for WebSocket connection
+    const backendHost = BACKEND_URL.replace(/^https?:\/\//, '');
+    const wsProtocol = BACKEND_URL.startsWith('https') ? 'wss:' : 'ws:';
+    const ws = new WebSocket(`${wsProtocol}//${backendHost}/ws`);
 
     ws.onmessage = (event) => {
       const log = JSON.parse(event.data);
@@ -1033,11 +1034,7 @@
       `;
       liveTable.prepend(tr);
     };
-    
 
-
-    <!-- PWA Service Worker Registration Script -->
- 
     if ('serviceWorker' in navigator) {
       window.addEventListener('load', () => {
         navigator.serviceWorker.register('/sw.js')
@@ -1049,9 +1046,6 @@
           });
       });
     }
-  
- 
-
   </script>
 </body>
 </html>
