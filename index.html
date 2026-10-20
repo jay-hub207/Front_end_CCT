@@ -5,14 +5,6 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Barangay Traffic Enforcement System</title>
 
-  <div class="header">
-  <div class="header-left">
-    <button class="btn-toggle-sidebar" onclick="toggleSidebar()">☰ Menu</button>
-    <h2 id="txtTitle">Barangay Automated Speed Violation System</h2>
-  </div>
-  <span class="badge" id="connStatus">SYSTEM READY</span>
-</div>
-
 <link rel="manifest" href="/manifest.json">
 <meta name="theme-color" content="#007bff">
 
@@ -440,6 +432,10 @@
       <div class="header">
         <div class="header-left">
           <button class="btn-toggle-sidebar" onclick="toggleSidebar()">☰ Menu</button>
+          
+          <!-- IDINAGDAG NA LOGO -->
+          <img src="logo.png" alt="Barangay Logo" style="width: 42px; height: 42px; border-radius: 50%; object-fit: cover; border: 2px solid var(--border-color);">
+          
           <h2 id="txtTitle">Barangay Automated Speed Violation System</h2>
         </div>
         <span class="badge" id="connStatus">SYSTEM READY</span>
@@ -502,7 +498,7 @@
         
         <!-- CARD 1: SPEED LIMIT CONTROL -->
         <div class="settings-card">
-          <h4 style="margin-top:0; color:#60a5fa;" id="txtSpeedLimitCardTitle">1. Speed Limit Threshold (km/h)</h4>
+          <h4 style="margin-top:0; color:#60a5fa;" id="txtSpeedLimitCardTitle">Speed Limit Threshold (km/h)</h4>
           <p style="color: var(--text-muted); font-size: 0.85rem;" id="txtSpeedLimitDesc">
             Adjust the threshold. Changes will automatically broadcast wirelessly to the ESP32 on the road.
           </p>
@@ -573,15 +569,15 @@
   </div>
 
   <script>
-    // Awtomatikong gigisingin ang Render backend kapag binuksan ang website
-window.addEventListener('DOMContentLoaded', () => {
-    fetch("https://overspeeding-backend.onrender.com/")
-        .then(response => console.log("Backend wake-up ping sent successfully!"))
-        .catch(error => console.log("Wake-up ping waiting for server..."));
-});
-    
     // Live Backend URL configuration
     const BACKEND_URL = "https://overspeeding-backend.onrender.com";
+
+    // Automatic wake-up ping for Render Free Tier backend
+    window.addEventListener('DOMContentLoaded', () => {
+        fetch(`${BACKEND_URL}/`)
+            .then(response => console.log("Backend wake-up ping sent successfully!"))
+            .catch(error => console.log("Wake-up ping waiting for server..."));
+    });
 
     let isAdminUnlocked = false;
     let pendingAction = null;
