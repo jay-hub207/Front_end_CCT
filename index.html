@@ -5,8 +5,8 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Barangay Traffic Enforcement System</title>
 
-<link rel="manifest" href="/manifest.json">
-<meta name="theme-color" content="#007bff">
+  <link rel="manifest" href="/manifest.json">
+  <meta name="theme-color" content="#007bff">
 
   <style>
     :root {
@@ -432,10 +432,7 @@
       <div class="header">
         <div class="header-left">
           <button class="btn-toggle-sidebar" onclick="toggleSidebar()">☰ Menu</button>
-          
-          <!-- IDINAGDAG NA LOGO -->
-          <img src="Logo.jpg" alt="Barangay Logo" style="width: 42px; height: 42px; border-radius: 50%; object-fit: cover; border: 2px solid var(--border-color);">
-          
+          <img src="Logo.jpg" alt="Barangay Logo" style="width: 42px; height: 42px; border-radius: 50%; object-fit: cover; border: 2px solid var(--border-color);" onerror="this.style.display='none'">
           <h2 id="txtTitle">Barangay Automated Speed Violation System</h2>
         </div>
         <span class="badge" id="connStatus">SYSTEM READY</span>
@@ -500,7 +497,7 @@
         <div class="settings-card">
           <h4 style="margin-top:0; color:#60a5fa;" id="txtSpeedLimitCardTitle">Speed Limit Threshold (km/h)</h4>
           <p style="color: var(--text-muted); font-size: 0.85rem;" id="txtSpeedLimitDesc">
-            Adjust the threshold. Changes will automatically broadcast wirelessly to the ESP32 on the road.
+            Adjust threshold. Changes will automatically broadcast wirelessly to the ESP32 on the road.
           </p>
           <div style="display: flex; align-items: center; gap: 15px; margin-top: 1rem;">
             <input type="number" id="speedInput" value="30" style="width: 100px; padding: 0.6rem; background: var(--card-bg); color: var(--text-main); border: 1px solid var(--border-color); border-radius: 6px; text-align: center; font-size: 1.1rem; font-weight: bold;">
@@ -569,15 +566,8 @@
   </div>
 
   <script>
-    // Live Backend URL configuration
-    const BACKEND_URL = "https://overspeeding-backend.onrender.com";
-
-    // Automatic wake-up ping for Render Free Tier backend
-    window.addEventListener('DOMContentLoaded', () => {
-        fetch(`${BACKEND_URL}/`)
-            .then(response => console.log("Backend wake-up ping sent successfully!"))
-            .catch(error => console.log("Wake-up ping waiting for server..."));
-    });
+    // Relative API Base URL para mag-work sa Render man o sa Local Server (Port 3000)
+    const BACKEND_URL = window.location.origin;
 
     let isAdminUnlocked = false;
     let pendingAction = null;
@@ -585,7 +575,7 @@
     let currentLang = "en";
     let isDarkMode = true;
 
-    // MULTI-LANGUAGE DICTIONARY FOR TEXT & DYNAMIC NOTIFICATIONS
+    // MULTI-LANGUAGE DICTIONARY
     const translations = {
       en: {
         title: "Barangay Speed Enforcement System",
@@ -863,19 +853,25 @@
       const pin = document.getElementById('pinInput').value;
       if (!pin) return alert(translations[currentLang].alertEnterPin);
 
-      const res = await fetch(`${BACKEND_URL}/api/verify-pin`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ pin: pin })
-      });
+      try {
+        const res = await fetch(`${BACKEND_URL}/api/verify-pin`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ pin: pin })
+        });
 
-      if (res.ok) {
-        isAdminUnlocked = true;
-        updateAdminUI();
-        closePinModal();
-        if (pendingAction) pendingAction();
-      } else {
-        alert(translations[currentLang].alertWrongPin);
+        const data = await res.json();
+
+        if (res.ok) {
+          isAdminUnlocked = true;
+          updateAdminUI();
+          closePinModal();
+          if (pendingAction) pendingAction();
+        } else {
+          alert(data.detail || translations[currentLang].alertWrongPin);
+        }
+      } catch (err) {
+        alert("Hindi makakonekta sa Python backend server.");
       }
     }
 
@@ -925,8 +921,12 @@
       }
     }
 
-    function toggleAdminAuth() {
+    async function toggleAdminAuth() {
       if (isAdminUnlocked) {
+        try {
+          await fetch(`${BACKEND_URL}/api/admin/logout`, { method: 'POST' });
+        } catch(e) {}
+        
         isAdminUnlocked = false;
         updateAdminUI();
         showRoom('live');
@@ -960,15 +960,29 @@
       const newLimit = parseFloat(speedInput.value);
       if (!newLimit || newLimit <= 0) return alert(translations[currentLang].alertValidSpeed);
 
-      const response = await fetch(`${BACKEND_URL}/api/speed-limit`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ new_limit: newLimit })
-      });
+      try {
+        const response = await fetch(`${BACKEND_URL}/api/settings/speed-limit`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ speed_limit: newLimit })
+        });
 
-      if (response.ok) {
-        document.getElementById('currentLimitDisplay').innerText = `${newLimit} km/h`;
-        alert(`${translations[currentLang].alertSpeedUpdated} ${newLimit} km/h!`);
+        const data = await response.json();
+
+        if (response.ok) {
+          const limitVal = data.new_speed_limit || data.new_limit || newLimit;
+          document.getElementById('currentLimitDisplay').innerText = `${limitVal} km/h`;
+          alert(`${translations[currentLang].alertSpeedUpdated} ${limitVal} km/h!`);
+        } else {
+          alert(data.detail || "Hindi nabago ang speed limit.");
+          if (response.status === 401) {
+            isAdminUnlocked = false;
+            updateAdminUI();
+            showRoom('live');
+          }
+        }
+      } catch (err) {
+        alert("Hindi makakonekta sa server.");
       }
     }
 
@@ -1011,23 +1025,27 @@
       renderHistoryTable(filtered);
     }
 
-    fetch(`${BACKEND_URL}/api/speed-limit`)
+    // Fetch Speed Limit Upon Page Load
+    fetch(`${BACKEND_URL}/api/settings/speed-limit`)
       .then(res => res.json())
       .then(data => {
-        document.getElementById('speedInput').value = data.speed_limit;
-        document.getElementById('currentLimitDisplay').innerText = `${data.speed_limit} km/h`;
+        if (data.speed_limit) {
+          document.getElementById('speedInput').value = data.speed_limit;
+          document.getElementById('currentLimitDisplay').innerText = `${data.speed_limit} km/h`;
+        }
       });
 
-    // Extract hostname from BACKEND_URL for WebSocket connection
-    const backendHost = BACKEND_URL.replace(/^https?:\/\//, '');
-    const wsProtocol = BACKEND_URL.startsWith('https') ? 'wss:' : 'ws:';
+    // WebSocket Setup
+    const backendHost = window.location.host;
+    const wsProtocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
     const ws = new WebSocket(`${wsProtocol}//${backendHost}/ws`);
 
     ws.onmessage = (event) => {
       const log = JSON.parse(event.data);
       if (log.type === "LIMIT_UPDATE") {
-        document.getElementById('currentLimitDisplay').innerText = `${log.new_limit} km/h`;
-        document.getElementById('speedInput').value = log.new_limit;
+        const newLimit = log.new_limit || log.new_speed_limit;
+        document.getElementById('currentLimitDisplay').innerText = `${newLimit} km/h`;
+        document.getElementById('speedInput').value = newLimit;
         return;
       }
 
@@ -1046,6 +1064,7 @@
       liveTable.prepend(tr);
     };
 
+    // Service Worker Registration for PWA Support
     if ('serviceWorker' in navigator) {
       window.addEventListener('load', () => {
         navigator.serviceWorker.register('/sw.js')
