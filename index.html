@@ -566,7 +566,7 @@
   </div>
 
   <script>
-    // Relative API Base URL para mag-work sa Render man o sa Local Server (Port 3000)
+    // Relative API Base URL
     const BACKEND_URL = window.location.origin;
 
     let isAdminUnlocked = false;
@@ -575,7 +575,7 @@
     let currentLang = "en";
     let isDarkMode = true;
 
-    // MULTI-LANGUAGE DICTIONARY
+    // MULTI-LANGUAGE DICTIONARY (WITH SINGLE SESSION LOCK ALERTS)
     const translations = {
       en: {
         title: "Barangay Speed Enforcement System",
@@ -610,10 +610,11 @@
         alertEnterPin: "Please enter the Admin PIN!",
         alertWrongPin: "❌ Incorrect Admin PIN! Access Denied.",
         alertSessionLocked: "🔒 Admin Session Locked.",
+        alertAlreadyLocked: "⚠️ Another Admin is currently logged in! Only one person can access the Control Panel at a time.",
         alertFillSetup: "Please complete all initial setup fields!",
         alertSetupSuccess: "✅ Admin Account successfully created!",
         alertFillReset: "Please answer the question and provide a new PIN!",
-        alertResetSuccess: "Matagumpay na napalitan ang Admin PIN! You can now use your new PIN.",
+        alertResetSuccess: "Admin PIN successfully updated! You can now use your new PIN.",
         alertFillChangePin: "Please enter your current PIN and new PIN!",
         alertChangePinSuccess: "✅ Admin PIN successfully updated!",
         alertValidSpeed: "Please enter a valid speed limit!",
@@ -652,6 +653,7 @@
         alertEnterPin: "Paki-lagay ang Admin PIN!",
         alertWrongPin: "❌ Mali ang Admin PIN! Hindi pinahintulutan.",
         alertSessionLocked: "🔒 Naka-lock na ang Admin Session.",
+        alertAlreadyLocked: "⚠️ May kasalukuyan nang naka-login na Admin sa system. Isang tao lang ang pwedeng humawak ng Control Panel!",
         alertFillSetup: "Paki-kumpleto ang lahat ng kinakailangang pormularyo!",
         alertSetupSuccess: "✅ Matagumpay na na-set up ang Admin Account!",
         alertFillReset: "Paki-sagutan ang tanong at ilagay ang bagong PIN!",
@@ -694,6 +696,7 @@
         alertEnterPin: "Pangngaasi nga ikabil ti Admin PIN!",
         alertWrongPin: "❌ Naumfong a PIN! Saan a nabaelan.",
         alertSessionLocked: "🔒 Naka-lock ti Session ti Admin.",
+        alertAlreadyLocked: "⚠️ Maimanehar ti maysa a tao ti Admin Panel! Adda pay nakatugaw a maysa a Admin.",
         alertFillSetup: "Pangngaasi nga ikabil ti amin nga impormasyon!",
         alertSetupSuccess: "✅ Na-set upen ti Admin Account!",
         alertFillReset: "Pangngaasi a sungbatan ti saludsod ken ikabil ti baro a PIN!",
@@ -713,6 +716,22 @@
           document.getElementById('setupModal').style.display = 'flex';
         }
       });
+
+    // Check session status periodically (Bawat 10 segundo)
+    setInterval(async () => {
+      try {
+        const res = await fetch(`${BACKEND_URL}/api/admin/session-status`);
+        const data = await res.json();
+        
+        // Kapag na-expire ang session sa server habang naka-login ang user
+        if (!data.is_locked_by_admin && isAdminUnlocked) {
+          isAdminUnlocked = false;
+          updateAdminUI();
+          showRoom('live');
+          alert("⏳ Session Expired: Automatic logout due to inactivity.");
+        }
+      } catch(e) {}
+    }, 10000);
 
     async function submitSetup() {
       const pin = document.getElementById('setupPinInput').value;
@@ -849,6 +868,7 @@
       document.getElementById('resetModal').style.display = 'none';
     }
 
+    // AUTHENTICATION LOGIC WITH SINGLE SESSION GUARD
     async function submitPin() {
       const pin = document.getElementById('pinInput').value;
       if (!pin) return alert(translations[currentLang].alertEnterPin);
@@ -867,6 +887,10 @@
           updateAdminUI();
           closePinModal();
           if (pendingAction) pendingAction();
+        } else if (res.status === 403) {
+          // HARANG SA PANGALAWANG USER
+          alert(translations[currentLang].alertAlreadyLocked);
+          closePinModal();
         } else {
           alert(data.detail || translations[currentLang].alertWrongPin);
         }
